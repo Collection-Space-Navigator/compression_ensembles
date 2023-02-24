@@ -379,7 +379,7 @@ def bwQuantizeThreshold(gray_img,  save=False):
 def floodFill(IMG,  start, save=False):
   h, w = IMG.shape[:2]
   flooded = IMG.copy()
-# slide through middle of upper third
+  # slide through middle of upper third
   if start.startswith("H_"):
     wGap = int(h/12)
     if start == "H_upperThird":
@@ -415,6 +415,50 @@ def floodFill(IMG,  start, save=False):
   if save:
     saveImage(flooded, "floodFill_"+start)
   return flooded
+
+def distanceTransformB(type,gray_img, format, baseline,save=False):
+  _, threshold = cv2.threshold(gray_img, 35, 255, cv2.THRESH_BINARY)
+ 
+  # Calculate the distance transform
+  if type=='1':
+    distTransform_filter = cv2.distanceTransform(threshold, cv2.DIST_C, 3)
+  elif type=='2':
+    distTransform_filter = cv2.distanceTransform(threshold, cv2.DIST_L1, 3)
+  else:
+    distTransform_filter = cv2.distanceTransform(threshold, cv2.DIST_L2, 3)
+
+  if save:
+    image_path ='distanceFilter'+type+'_image.png'
+    imageTransformed.append(image_path) 
+    cv2.imwrite(image_path,distTransform_filter)
+  return get_ratio(compress(distTransform_filter,format),baseline)
+
+def houghLinesP(gray_img, format, baseline,save=False):
+  houghLinesP_img = gray_img.copy()
+  #houghLinesP_img = cv2.rectangle(gray_img,(0,0),(gray_img.shape[1],gray_img.shape[0]),(0,0,0),thickness=-1)
+  #houghLinesP_img = np.zeros((gray_img.shape[0], gray_img.shape[1], 1), dtype = "uint8")
+  #houghLinesP_img = cv2.cvtColor(gray_img2,cv2.COLOR_GRAY2RGB)
+  houghLinesP_img = cv2.rectangle(houghLinesP_img,(0,0),(houghLinesP_img.shape[1],gray_img.shape[0]),(0,0,0),thickness=-1)
+  canny = cv2.Canny(gray_img, threshold1=30, threshold2=100)
+  lines = cv2.HoughLinesP(canny,1,np.pi/180,100,minLineLength=100,maxLineGap=10)
+  #houghLinesP_img = gray_img
+  for line in lines:
+      x1,y1,x2,y2 = line[0]
+      cv2.line(houghLinesP_img,(x1,y1),(x2,y2),(255,255,255),2)
+  if save:
+    image_path ='houghLinesP_image.png'
+    imageTransformed.append(image_path)
+    cv2.imwrite(image_path, houghLinesP_img)
+  return get_ratio(compress(houghLinesP_img,format),baseline)
+
+def adaptiveThreshold(gray_img, format, baseline,save=False):
+  img_grey = cv2.cvtColor(gray_img, cv2.COLOR_BGR2GRAY)
+  adaptiveThreshold_filter = cv2.adaptiveThreshold(img_grey ,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,2)
+  if save:
+    image_path ='adaptiveThresholdFilter_image.png'
+    imageTransformed.append(image_path) 
+    cv2.imwrite(image_path,adaptiveThreshold_filter)
+  return get_ratio(compress(adaptiveThreshold_filter,format),baseline)
 
 # def floodFill(IMG,  start, save=False):
 #   h, w = IMG.shape[:2]
