@@ -187,7 +187,6 @@ def compressComplexity(img_100, save=False):
   vector["floodFillLowerLeftThird_gif_100"] = get_ratio(compress(trans.floodFill(blur_100,"lowerLeftThird",save),"gif"),blurBaseline)
   vector["floodFillLowerRightThird_gif_100"] = get_ratio(compress(trans.floodFill(blur_100,"lowerRightThird",save),"gif"),blurBaseline)
 
-
   # Statistics
   # fractalDimensionOTSU
   vector["fractalDimensionOTSU_100"] = stats.fractalDimension(OTSU_100/255)
