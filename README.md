@@ -12,3 +12,6 @@ The Python version presented in this repository uses OpenCV and PIL with optimiz
 The specific transformations and total number are arbitrary for the method as stated in the supplementary material:
 
 >"Note that the compression ensemble approach is general and the specific number of transformations is unimportant. As demonstrated in the Evaluation section in the main text of the paper, and handful transformations may be enough for some tasks. Here, we opted to implement a fairly large array of transformations and additional compressions with different sizes and algorithms, in order to explore the transformation space in a relatively comprehensive manner. If, unlike here, computation time is important, a smaller set of transformations is likely a better choice."
+
+## Acknowledgements
+AK, MCS, TO, MS are supported by ERA Chair for <a href="https://cudan.tlu.ee/" target="_blank">Cultural Data Analytics</a>, funded through the European Union’s Horizon 2020 research and innovation program (Grant No.810961).
