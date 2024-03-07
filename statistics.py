@@ -44,8 +44,11 @@ def fractalDimension(Z,threshold=None):
     for size in sizes:
         counts.append(boxcount(Z, size))
     # Fit the successive log(sizes) with log (counts)
-    coeffs = np.polyfit(np.log(sizes), np.log(counts), 1)
-    return -coeffs[0]
+    try:
+        coeffs = np.polyfit(np.log(sizes), np.log(counts), 1)
+        return -coeffs[0]
+    except:
+        return 0
 
 #  Entropy of Hough Lines angles: Hough Lines are somewhat probleatic, should be reconsidered if useful
 def entropy(labels, base=None):
