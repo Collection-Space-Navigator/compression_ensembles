@@ -8,8 +8,9 @@ Andres Karjus, Mar Canet Solà, Tillmann Ohm, Sebastian E. Ahnert, Maximilian Sc
 Note: Our paper may describe slightly different transformations using R and ImageMagick. 
 This version uses Python and OpenCV with optimized transformations which should run much faster.
 The specific transformations and total number is abritrary for the method (see paper).
-
 """
+
+
 import os
 import cv2
 import math
@@ -18,7 +19,11 @@ from datetime import datetime
 from compression import compressComplexity
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-import sys
+# import sys
+# import shutil
+# import concurrent.futures
+import warnings
+warnings.filterwarnings("ignore")
 #----------------------------------------------------------------------------------------------
 # Global variables - settings
 #----------------------------------------------------------------------------------------------
@@ -32,7 +37,7 @@ supportformats = ('.png', '.jpg', '.jpeg')
 #----------------------------------------------------------------------------------------------
 class compressionEmbeddings:
   def resizeImage(self, filepath):
-    print('resize filepath:', filepath)
+    # print('resize filepath:', filepath)
     IMG = cv2.imread(filepath)
     # resize to 160k pixel
     h,w,_ = IMG.shape
@@ -49,10 +54,11 @@ class compressionEmbeddings:
     return ts
 
   def makePCA(self,df):
+    df = df.dropna(axis=1)
     embeddings = df.values
     filenames = df.index
     embeddings = StandardScaler().fit_transform(df.values)
-    pca = PCA(n_components=len(df.columns))
+    pca = PCA(n_components=min(len(df.columns),len(df.index)))
     principalComponents = pca.fit_transform(embeddings)
     return pd.DataFrame(data = principalComponents, index=filenames)
 
@@ -62,6 +68,10 @@ class compressionEmbeddings:
     else:
       full_path = path+"/"+filename
     preparedImage = self.resizeImage(full_path)
+    # make greyscale
+    preparedImage = cv2.cvtColor(preparedImage, cv2.COLOR_BGR2GRAY)
+    # convert back to rgb
+    preparedImage = cv2.cvtColor(preparedImage, cv2.COLOR_GRAY2RGB)
     vectorAr = compressComplexity(preparedImage,save=debug)
     vectorAr['file'] = filename
     #vectorDescriptions = list(testVector.keys())
@@ -78,7 +88,7 @@ class compressionEmbeddings:
     for path in res:
       json.append( self.processFile(dir_path,path,debug) )
     return json
-
+  
   def process(self,path,typeFast=True,debug=False):
     data = []
     if debug:
@@ -98,30 +108,18 @@ class compressionEmbeddings:
       if os.path.isdir(path):  
         print("Process this directory:",path)  
         data = self.processFolder(path,debug)
-      elif os.path.isfile(path):  
-        print("Process this file:",path)
-        data = [self.processFile('',path,debug)]
-    '''
-    try:
-    except:
-      print("No processing file or folder defined as argument")
-    '''
-    # convert json to CSV
-    df = pd.DataFrame(data)
-    output = str(path.replace('.','_').replace('/','_')+'_embeddings.csv')
-    df.to_csv(output)
+        data_df = pd.DataFrame(data).set_index('file')
+        df = self.makePCA(data_df)
+        output = f'{outputFolder}/embeddings.csv'
+        df.to_csv(output)
+    
 
-#----------------------------------------------------------------------------------------------
-# Produce transformation images for visualization, evaluation and selection
-#----------------------------------------------------------------------------------------------
+
 
 if __name__ == '__main__':
-  path = sys.argv[1]
   myCompressionEmbeddings = compressionEmbeddings()
-  try:
-    typeFast = sys.argv[2]
-    debug = sys.argv[3]
-  except:
-    debug = False
-    typeFast = True
-  myCompressionEmbeddings.process(path,typeFast,debug)
+  path = "input"
+  typeFast = True
+  debug = True
+  myCompressionEmbeddings.process(path, typeFast, debug)
+
