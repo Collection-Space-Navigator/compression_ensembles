@@ -19,6 +19,9 @@ from compression import compressComplexity
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 import sys
+import shutil
+import concurrent.futures
+
 #----------------------------------------------------------------------------------------------
 # Global variables - settings
 #----------------------------------------------------------------------------------------------
@@ -32,7 +35,7 @@ supportformats = ('.png', '.jpg', '.jpeg')
 #----------------------------------------------------------------------------------------------
 class compressionEmbeddings:
   def resizeImage(self, filepath):
-    print('resize filepath:', filepath)
+    # print('resize filepath:', filepath)
     IMG = cv2.imread(filepath)
     # resize to 160k pixel
     h,w,_ = IMG.shape
@@ -49,10 +52,11 @@ class compressionEmbeddings:
     return ts
 
   def makePCA(self,df):
+    df = df.dropna(axis=1)
     embeddings = df.values
     filenames = df.index
     embeddings = StandardScaler().fit_transform(df.values)
-    pca = PCA(n_components=len(df.columns))
+    pca = PCA(n_components=min(len(df.columns),len(df.index)))
     principalComponents = pca.fit_transform(embeddings)
     return pd.DataFrame(data = principalComponents, index=filenames)
 
@@ -62,6 +66,10 @@ class compressionEmbeddings:
     else:
       full_path = path+"/"+filename
     preparedImage = self.resizeImage(full_path)
+    # make greyscale
+    preparedImage = cv2.cvtColor(preparedImage, cv2.COLOR_BGR2GRAY)
+    # convert back to rgb
+    preparedImage = cv2.cvtColor(preparedImage, cv2.COLOR_GRAY2RGB)
     vectorAr = compressComplexity(preparedImage,save=debug)
     vectorAr['file'] = filename
     #vectorDescriptions = list(testVector.keys())
@@ -78,50 +86,76 @@ class compressionEmbeddings:
     for path in res:
       json.append( self.processFile(dir_path,path,debug) )
     return json
+  
+  def delete_batches(self):
+    # Delete all files in batches directory
+    folder = 'batches'
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f"Failed to delete {file_path}. Reason: {e}")
+      
+  def process(self, path, typeFast=True, debug=False, pca=True):
+    batch_size = 50
+    batch_count = 0
+    batch_data = []
 
-  def process(self,path,typeFast=True,debug=False):
-    data = []
-    if debug:
-      isExist_exportFolder = os.path.exists(exportFolder)
-      if not isExist_exportFolder:
-        # Create a new directory because it does not exist
-        os.makedirs(exportFolder)
-        print("The export directory was created!")
+    def process_single_file(file):
+        return self.processFile(path, file, debug)
 
-      isExist_outputFolder = os.path.exists(outputFolder)
-      if not isExist_outputFolder:
-        # Create a new directory because it does not exist
-        os.makedirs(outputFolder)
-        print("The output directory was created!")
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and f.lower().endswith(supportformats)]
+        results = list(executor.map(process_single_file, files))
 
-    if True:
-      if os.path.isdir(path):  
-        print("Process this directory:",path)  
-        data = self.processFolder(path,debug)
-      elif os.path.isfile(path):  
-        print("Process this file:",path)
-        data = [self.processFile('',path,debug)]
-    '''
+    for result in results:
+        if len(batch_data) < batch_size:
+            batch_data.append(result)
+        else:
+            batch_count += 1
+            df = pd.DataFrame(batch_data)
+            df.set_index("file", inplace=True)
+            output = f'batches/{batch_count}.csv'
+            df.to_csv(output)
+            batch_data = []
+
+    if batch_data:
+        batch_count += 1
+        df = pd.DataFrame(batch_data)
+        df.set_index("file", inplace=True)
+        output = f'batches/{batch_count}.csv'
+        df.to_csv(output)
+
+    self.makeEnsemble(path, pca)
+
+  def makeEnsemble(self, path, pca):
     try:
+      all_files_data = []
+      for file in os.listdir("batches"):
+          if file.endswith(".csv"):
+              df = pd.read_csv(os.path.join("batches", file), index_col="file")
+              all_files_data.append(df)
+      concatenated_data = pd.concat(all_files_data)
+      name = str(path.replace('.', '_').replace('/', '_'))
+      concatenated_data.to_csv(f"output/{name}_raw_ensembles.csv")
     except:
-      print("No processing file or folder defined as argument")
-    '''
-    # convert json to CSV
-    df = pd.DataFrame(data)
-    output = str(path.replace('.','_').replace('/','_')+'_embeddings.csv')
-    df.to_csv(output)
+      print("No batches found")
+    else:
+      self.delete_batches()
+      if pca:
+        df = self.makePCA(concatenated_data)
+        df.to_csv(f"output/{name}_pca_ensembles.csv")
 
-#----------------------------------------------------------------------------------------------
-# Produce transformation images for visualization, evaluation and selection
-#----------------------------------------------------------------------------------------------
+
 
 if __name__ == '__main__':
-  path = sys.argv[1]
   myCompressionEmbeddings = compressionEmbeddings()
-  try:
-    typeFast = sys.argv[2]
-    debug = sys.argv[3]
-  except:
-    debug = False
-    typeFast = True
-  myCompressionEmbeddings.process(path,typeFast,debug)
+  path = "input"
+  typeFast = True
+  debug = True
+  myCompressionEmbeddings.process(path, typeFast, debug)
+
