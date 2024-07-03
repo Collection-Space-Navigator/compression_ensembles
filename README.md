@@ -1,3 +1,5 @@
+# Compression Ensembles for Python
+
 ### Alternative Python implementation for compression ensembles to quantify the aesthetic complexity of images
 
 See paper: https://epjds.epj.org/articles/epjdata/abs/2023/01/13688_2023_Article_397/13688_2023_Article_397.html
